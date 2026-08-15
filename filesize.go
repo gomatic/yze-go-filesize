@@ -12,22 +12,25 @@
 // 285, so 300 flags the genuine outliers without reshaping ordinary code. A
 // repository with a different profile sets -max.
 //
-// Test files are not judged, and _test.go is the whole of that rule. Length is a
-// proxy, and every property it stands in for — complexity, naming, structure,
-// assertions, error handling — is measured directly by an analyzer that applies
-// to test code exactly as it applies to source, so where those hold the proxy
-// has nothing left to say. What length additionally gets wrong about tests is
-// that the number of tests a function needs is set by its branches rather than
-// by its own length: one boundary, three error paths and a table of cases
-// legitimately cost many times the source they cover, and a rule written against
-// source growth reads that as a defect when it is the coverage requirement being
-// met. The exemption cannot be forged without acquiring what it exempts, and
-// that holds because of the matcher rather than because of this sentence: the
-// predicate below is go/build's own, strings.HasSuffix(name, "_test.go"), the
-// same expression the go tool applies when deciding which files it compiles
-// into the test binary alone. So the escape and the property cannot come apart
-// — a file acquires the marker exactly when it stops being compiled into the
-// package, and a source file cannot take the escape and stay source.
+// Test files are not judged. Not because tests deserve less care, but because
+// LENGTH specifically says nothing true about them: the number of tests a
+// function needs is set by its branches rather than by its own length, so one
+// boundary, three error paths and a table of cases legitimately cost many times
+// the source they cover, and a rule written against source growth reads that as
+// a defect when it is the coverage requirement being met. Correctness rules
+// still apply to test code exactly as they apply to source; length is the only
+// property tests are excused from, and that exemption is the owner's decision
+// rather than this analyzer's inference.
+//
+// The exemption is decided by the file's name, and the name is what makes it
+// unforgeable — not any sentence here. isTest applies
+// strings.HasSuffix(name, "_test.go"), which is the expression go/build itself
+// applies when deciding which files it compiles into the test binary alone, so
+// acquiring the marker IS being dropped from the package build and no spelling
+// buys the silence without paying for it. The claim is deliberately no wider
+// than that: the go tool also compiles a generated _testmain.go into the test
+// binary alone, and this rule does not spare it, because a generated file is
+// the framework's exemption to apply rather than this one's.
 //
 // Generated files are not this analyzer's concern: the yze framework drops
 // findings in files carrying the standard generated marker before they are
@@ -68,18 +71,27 @@ func newAnalyzer() *analysis.Analyzer {
 
 // Registration declares this analyzer to the yze framework.
 //
-// The scope is declared here rather than left to the runner's table because the
-// rule is the analyzer's, not the catalog's: report already refuses test files,
-// so a registration saying TestScopeAll would claim the analyzer reports in
-// every file when it does not. Declaring it makes the two agree without adding
-// a second mechanism — the driver's drop is a no-op for findings this analyzer
-// never emits, and every caller that skips the driver (the standalone binary,
-// `go vet -vettool`, analysistest) still gets the same answer.
+// It deliberately declares NO TestScope, and that is a decision rather than an
+// omission. TestScopeAll asks the driver to filter nothing, which is exactly
+// right here: report has already refused every test file, so there is nothing
+// left for a second filter to remove and something it would wrongly remove.
+// go-yze decides a source-only rule's drop from the RESOLVED position path —
+// outOfScope reads Diagnostic.Path, which convert.go takes from fset.Position —
+// and fset.Position applies //line directives. So `//line zz_test.go:1` on the
+// first line of an ordinary source file, one that go/build still compiles into
+// the package and any importer still links, makes that driver drop a finding
+// this analyzer correctly emitted. isTest reads token.File.Name(), which no
+// directive rewrites.
+//
+// Declaring the scope would therefore buy no silence this analyzer does not
+// already produce correctly, and one it must not produce: a forgeable escape
+// costing a single comment, standing beside an unforgeable one that costs being
+// compiled out of the package. The rule stays where its matcher cannot be
+// rewritten by the file it is judging.
 var Registration = goyze.Registration{
 	Name:       "filesize",
 	Categories: []goyze.Category{"structure", "maintainability"},
 	URL:        "https://docs.gomatic.dev/yze/filesize",
-	TestScope:  goyze.TestScopeSourceOnly,
 	Analyzer:   Analyzer,
 }
 

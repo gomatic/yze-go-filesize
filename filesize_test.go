@@ -36,15 +36,19 @@ func TestRegistrationIsWellFormed(t *testing.T) {
 	assert.Same(t, filesize.Analyzer, filesize.Registration.Analyzer)
 }
 
-// TestRegistrationDeclaresTheScopeTheAnalyzerEnforces pins the half of the rule
-// no run can observe. The analyzer refuses test files itself, so a runner that
-// applies the declared scope and one that does not agree either way — which is
-// exactly what makes the declaration silently wrong if it drifts. TestScopeAll
-// here would assert the analyzer reports in every file while report refuses to,
-// the shape that left one rule meaning two different things depending on whether
-// it was reached through the framework or through the standalone binary.
-func TestRegistrationDeclaresTheScopeTheAnalyzerEnforces(t *testing.T) {
-	assert.Equal(t, goyze.TestScopeSourceOnly, filesize.Registration.TestScope)
+// TestRegistrationDeclaresNoTestScopeOnPurpose pins a decision that reads like
+// an omission and is the opposite of one.
+//
+// Declaring TestScopeSourceOnly would enrol this rule in a SECOND matcher, and
+// that one is forgeable: go-yze decides the drop from the resolved position
+// path, which //line rewrites, while isTest reads the real file name, which no
+// directive touches. A source file carrying `//line zz_test.go:1` is compiled
+// into the package by go/build and linked by any importer, yet the driver would
+// drop its finding. The analyzer already refuses every real test file, so the
+// declaration buys no correct silence and one incorrect one — see
+// TestReportJudgesTheRealNameNotTheRewrittenPosition for the divergence itself.
+func TestRegistrationDeclaresNoTestScopeOnPurpose(t *testing.T) {
+	assert.Equal(t, goyze.TestScopeAll, filesize.Registration.TestScope)
 }
 
 // TestTestFilesAreOutOfScopeAtTheDefaultBoundary pins the file class the rule
