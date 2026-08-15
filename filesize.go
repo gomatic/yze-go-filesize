@@ -21,9 +21,13 @@
 // by its own length: one boundary, three error paths and a table of cases
 // legitimately cost many times the source they cover, and a rule written against
 // source growth reads that as a defect when it is the coverage requirement being
-// met. The exemption cannot be forged without acquiring what it exempts —
-// renaming a file to _test.go is what makes the go tool compile it into the test
-// binary alone, so a source file cannot take the escape and stay source.
+// met. The exemption cannot be forged without acquiring what it exempts, and
+// that holds because of the matcher rather than because of this sentence: the
+// predicate below is go/build's own, strings.HasSuffix(name, "_test.go"), the
+// same expression the go tool applies when deciding which files it compiles
+// into the test binary alone. So the escape and the property cannot come apart
+// — a file acquires the marker exactly when it stops being compiled into the
+// package, and a source file cannot take the escape and stay source.
 //
 // Generated files are not this analyzer's concern: the yze framework drops
 // findings in files carrying the standard generated marker before they are
